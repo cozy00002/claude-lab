@@ -16,5 +16,5 @@ const outDir = path.resolve(root, opt('--out') ?? 'dist');
 const base = opt('--base') ?? process.env.BASE_PATH ?? '/';
 const includeDrafts = args.includes('--drafts');
 
-const posts = await buildSite({ root, outDir, base, includeDrafts });
-console.log(`${posts.length} 件の記事を出力しました（base: ${base}${includeDrafts ? '、下書きを含む' : ''}）`);
+const { ja, en } = await buildSite({ root, outDir, base, includeDrafts });
+console.log(`日本語 ${ja.length} 件、英語 ${en.length} 件の記事を出力しました（base: ${base}${includeDrafts ? '、下書きを含む' : ''}）`);

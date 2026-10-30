@@ -11,3 +11,5 @@ npm run preview   # 下書きを含めてビルドし、http://localhost:8080/ �
 ```
 
 記事は `posts/YYYY-MM-DD-スラッグ.md` に置き、先頭に `title`（必須）、`summary`、`draft: true`（下書き）を書きます。
+
+英語版は `posts/en/` に同じファイル名で置くと、`/en/` の下に出力され、日本語版と英語版の記事どうしがリンクされます。

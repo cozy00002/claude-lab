@@ -33,7 +33,7 @@ test('記事：ファイル名の形式と title は必須', () => {
 const tempRoots = [];
 after(() => Promise.all(tempRoots.map((r) => rm(r, { recursive: true, force: true }))));
 
-async function makeSite(posts) {
+async function makeSite(posts, enPosts) {
   const root = await mkdtemp(path.join(tmpdir(), 'blog-test-'));
   tempRoots.push(root);
   await mkdir(path.join(root, 'posts'));
@@ -41,6 +41,10 @@ async function makeSite(posts) {
   await copyFile(path.join(blogRoot, 'assets', 'style.css'), path.join(root, 'assets', 'style.css'));
   await writeFile(path.join(root, 'site.json'), JSON.stringify({ siteTitle: 'T', description: 'D' }));
   for (const [name, src] of Object.entries(posts)) await writeFile(path.join(root, 'posts', name), src);
+  if (enPosts) {
+    await mkdir(path.join(root, 'posts', 'en'));
+    for (const [name, src] of Object.entries(enPosts)) await writeFile(path.join(root, 'posts', 'en', name), src);
+  }
   return root;
 }
 
@@ -51,7 +55,7 @@ test('ビルド：下書きは既定で出さず、新しい順に並べる', as
     '2026-10-25-wip.md': '---\ntitle: 書きかけ\ndraft: true\n---\nC',
   });
   const out = path.join(root, 'dist');
-  const posts = await buildSite({ root, outDir: out, base: '/claude-lab', includeDrafts: false });
+  const { ja: posts } = await buildSite({ root, outDir: out, base: '/claude-lab', includeDrafts: false });
   assert.deepEqual(posts.map((p) => p.slug), ['new', 'old']);
 
   const index = await readFile(path.join(out, 'index.html'), 'utf8');
@@ -85,4 +89,53 @@ test('ビルド：タイトルの HTML はエスケープする', async () => {
   await buildSite({ root, outDir: out, base: '/', includeDrafts: false });
   const page = await readFile(path.join(out, 'posts', 'x', 'index.html'), 'utf8');
   assert.ok(page.includes('&lt;b&gt;x&lt;/b&gt;') && !page.includes('<b>x</b>'));
+});
+
+test('ビルド：posts/en がなければ英語版は出さず、切り替えのリンクも出さない', async () => {
+  const root = await makeSite({ '2026-10-01-a.md': '---\ntitle: あ\n---\n' });
+  const out = path.join(root, 'dist');
+  const { en } = await buildSite({ root, outDir: out, base: '/', includeDrafts: false });
+  assert.equal(en.length, 0);
+  await assert.rejects(access(path.join(out, 'en', 'index.html')));
+  const index = await readFile(path.join(out, 'index.html'), 'utf8');
+  assert.ok(!index.includes('class="lang"'));
+  assert.match(index, /<html lang="ja">/);
+});
+
+test('ビルド：英語版は /en/ の下に出し、翻訳どうしをリンクする', async () => {
+  const root = await makeSite(
+    {
+      '2026-10-01-both.md': '---\ntitle: 両方\n---\n',
+      '2026-10-02-jaonly.md': '---\ntitle: 日本語だけ\n---\n',
+    },
+    { '2026-10-01-both.md': '---\ntitle: Both\n---\n' },
+  );
+  const out = path.join(root, 'dist');
+  const { ja, en } = await buildSite({ root, outDir: out, base: '/claude-lab/', includeDrafts: false });
+  assert.deepEqual([ja.length, en.length], [2, 1]);
+
+  const enIndex = await readFile(path.join(out, 'en', 'index.html'), 'utf8');
+  assert.match(enIndex, /<html lang="en">/);
+  assert.ok(enIndex.includes('href="/claude-lab/en/posts/both/"'));
+  assert.ok(enIndex.includes('href="/claude-lab/style.css"'), 'CSS は共通');
+  assert.ok(enIndex.includes('class="lang" href="/claude-lab/">日本語<'));
+
+  const enPost = await readFile(path.join(out, 'en', 'posts', 'both', 'index.html'), 'utf8');
+  assert.ok(enPost.includes('class="lang" href="/claude-lab/posts/both/"'), '翻訳元の記事へ');
+  assert.ok(enPost.includes('← All posts'));
+
+  const jaPost = await readFile(path.join(out, 'posts', 'both', 'index.html'), 'utf8');
+  assert.ok(jaPost.includes('class="lang" href="/claude-lab/en/posts/both/"'), '英語版の記事へ');
+  const jaOnly = await readFile(path.join(out, 'posts', 'jaonly', 'index.html'), 'utf8');
+  assert.ok(jaOnly.includes('class="lang" href="/claude-lab/en/"'), '翻訳がなければ英語の一覧へ');
+});
+
+test('ビルド：site.json の en で英語の文言を上書きできる', async () => {
+  const root = await makeSite({}, { '2026-10-01-a.md': '---\ntitle: A\n---\n' });
+  await writeFile(path.join(root, 'site.json'), JSON.stringify({ siteTitle: 'T', description: 'D', en: { description: 'English D' } }));
+  const out = path.join(root, 'dist');
+  await buildSite({ root, outDir: out, base: '/', includeDrafts: false });
+  const enIndex = await readFile(path.join(out, 'en', 'index.html'), 'utf8');
+  assert.ok(enIndex.includes('<p>English D</p>'));
+  assert.ok(!enIndex.includes('<p>D</p>'), '日本語の説明は英語版に出さない');
 });
