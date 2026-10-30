@@ -1,0 +1,20 @@
+// 使い方: node build.mjs [--drafts] [--base /claude-lab/] [--out dist]
+//   --drafts  下書き（draft: true）の記事も出力する（手元での確認用）
+//   --base    サイトを置く URL のパス。既定は環境変数 BASE_PATH、なければ "/"
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildSite } from './lib/site.mjs';
+
+const args = process.argv.slice(2);
+const opt = (name) => {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : undefined;
+};
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+const outDir = path.resolve(root, opt('--out') ?? 'dist');
+const base = opt('--base') ?? process.env.BASE_PATH ?? '/';
+const includeDrafts = args.includes('--drafts');
+
+const posts = await buildSite({ root, outDir, base, includeDrafts });
+console.log(`${posts.length} 件の記事を出力しました（base: ${base}${includeDrafts ? '、下書きを含む' : ''}）`);
