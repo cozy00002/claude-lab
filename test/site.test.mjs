@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, copyFile, access, rm } from 'node:
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFrontMatter, parsePost, buildSite } from '../lib/site.mjs';
+import { parseFrontMatter, parsePost, parseTags, buildSite } from '../lib/site.mjs';
 
 const blogRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -23,6 +23,14 @@ test('記事：日付とスラッグはファイル名から取る', () => {
   assert.equal(p.date, '2026-10-29');
   assert.equal(p.slug, 'setup');
   assert.equal(p.draft, false);
+});
+
+test('タグ：カンマ区切りと [a, b] の形。空と重複は除く', () => {
+  assert.deepEqual(parseTags('Claude Code, hooks'), ['Claude Code', 'hooks']);
+  assert.deepEqual(parseTags('[a, "b", a, ]'), ['a', 'b']);
+  assert.deepEqual(parseTags(undefined), []);
+  assert.deepEqual(parseTags(''), []);
+  assert.deepEqual(parsePost('2026-10-29-a.md', '---\ntitle: a\n---\n').tags, []);
 });
 
 test('記事：ファイル名の形式と title は必須', () => {
@@ -73,6 +81,19 @@ test('ビルド：--drafts なら下書きも出し、印を付ける', async ()
   await buildSite({ root, outDir: out, base: '/', includeDrafts: true });
   const page = await readFile(path.join(out, 'posts', 'wip', 'index.html'), 'utf8');
   assert.match(page, /class="draft">下書き</);
+});
+
+test('ビルド：タグを記事ページと一覧に出し、エスケープする', async () => {
+  const root = await makeSite({
+    '2026-10-01-a.md': '---\ntitle: タグあり\ntags: hooks, <b>\n---\nA',
+    '2026-10-02-b.md': '---\ntitle: タグなし\n---\nB',
+  });
+  const out = path.join(root, 'dist');
+  await buildSite({ root, outDir: out, base: '/', includeDrafts: false });
+  const tags = '<p class="tags"><span class="tag">hooks</span> <span class="tag">&lt;b&gt;</span></p>';
+  assert.ok((await readFile(path.join(out, 'posts', 'a', 'index.html'), 'utf8')).includes(tags));
+  assert.ok((await readFile(path.join(out, 'index.html'), 'utf8')).includes(tags));
+  assert.ok(!(await readFile(path.join(out, 'posts', 'b', 'index.html'), 'utf8')).includes('class="tags"'));
 });
 
 test('ビルド：スラッグの重複はエラー', async () => {
