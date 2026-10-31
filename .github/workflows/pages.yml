@@ -48,3 +48,14 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      # 新しい記事があれば Discord に知らせる。Webhook の URL は Secret の DISCORD_WEBHOOK_URL に入れておくこと
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node notify-discord.mjs
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
