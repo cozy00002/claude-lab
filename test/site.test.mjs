@@ -96,6 +96,51 @@ test('ビルド：タグを記事ページと一覧に出し、エスケープ�
   assert.ok(!(await readFile(path.join(out, 'posts', 'b', 'index.html'), 'utf8')).includes('class="tags"'));
 });
 
+test('ビルド：RSS フィードを言語ごとに出し、絶対 URL とエスケープを使う', async () => {
+  const root = await makeSite(
+    {
+      '2026-10-01-old.md': '---\ntitle: 古い & <x>\nsummary: 要約\n---\nA',
+      '2026-10-20-new.md': '---\ntitle: 新しい\n---\nB',
+      '2026-10-25-wip.md': '---\ntitle: 書きかけ\ndraft: true\n---\nC',
+    },
+    { '2026-10-01-old.md': '---\ntitle: Old\n---\n' },
+  );
+  const out = path.join(root, 'dist');
+  await buildSite({ root, outDir: out, base: '/claude-lab', includeDrafts: false, origin: 'https://example.github.io/' });
+
+  const feed = await readFile(path.join(out, 'feed.xml'), 'utf8');
+  assert.match(feed, /^<\?xml version="1.0" encoding="utf-8"\?>\n<rss version="2.0">/);
+  assert.ok(feed.includes('<link>https://example.github.io/claude-lab/</link>'));
+  assert.ok(feed.includes('<link>https://example.github.io/claude-lab/posts/new/</link>'));
+  assert.ok(feed.indexOf('posts/new/') < feed.indexOf('posts/old/'), '新しい順');
+  assert.ok(feed.includes('<title>古い &amp; &lt;x&gt;</title>'));
+  assert.ok(feed.includes('<description>要約</description>'));
+  assert.ok(feed.includes('<pubDate>Thu, 01 Oct 2026 00:00:00 GMT</pubDate>'));
+  assert.ok(feed.includes('<language>ja</language>'));
+  assert.ok(!feed.includes('書きかけ'));
+
+  const enFeed = await readFile(path.join(out, 'en', 'feed.xml'), 'utf8');
+  assert.ok(enFeed.includes('<link>https://example.github.io/claude-lab/en/posts/old/</link>'));
+  assert.ok(enFeed.includes('<language>en</language>'));
+
+  const index = await readFile(path.join(out, 'index.html'), 'utf8');
+  assert.ok(index.includes('<link rel="alternate" type="application/rss+xml" title="T" href="/claude-lab/feed.xml">'));
+  const enPage = await readFile(path.join(out, 'en', 'posts', 'old', 'index.html'), 'utf8');
+  assert.ok(enPage.includes('href="/claude-lab/en/feed.xml"'));
+});
+
+test('ビルド：RSS フィードは新しい 20 件まで', async () => {
+  const posts = {};
+  for (let i = 1; i <= 25; i++) posts[`2026-10-${String(i).padStart(2, '0')}-p${i}.md`] = `---\ntitle: p${i}\n---\n`;
+  const root = await makeSite(posts);
+  const out = path.join(root, 'dist');
+  await buildSite({ root, outDir: out, base: '/', includeDrafts: false });
+  const feed = await readFile(path.join(out, 'feed.xml'), 'utf8');
+  assert.equal(feed.match(/<item>/g).length, 20);
+  assert.ok(feed.includes('posts/p25/') && !feed.includes('posts/p5/'));
+  assert.ok(feed.includes('<link>http://localhost:8080/</link>'), 'origin の既定');
+});
+
 test('ビルド：スラッグの重複はエラー', async () => {
   const root = await makeSite({
     '2026-10-01-a.md': '---\ntitle: 1\n---\n',

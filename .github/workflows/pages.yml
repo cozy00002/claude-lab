@@ -32,7 +32,7 @@ jobs:
       - id: pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
-      - run: node build.mjs --base "${{ steps.pages.outputs.base_path || '' }}/"
+      - run: node build.mjs --base "${{ steps.pages.outputs.base_path || '' }}/" --origin "${{ steps.pages.outputs.origin || 'http://localhost:8080' }}"
       - if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
