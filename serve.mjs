@@ -8,9 +8,9 @@ import { buildSite } from './lib/site.mjs';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(root, 'dist');
 const port = Number(process.env.PORT ?? 8080);
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml', '.xml': 'application/rss+xml; charset=utf-8' };
 
-await buildSite({ root, outDir, base: '/', includeDrafts: true });
+await buildSite({ root, outDir, base: '/', includeDrafts: true, origin: `http://localhost:${port}` });
 
 http.createServer(async (req, res) => {
   let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
