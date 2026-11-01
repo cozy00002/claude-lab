@@ -82,3 +82,34 @@ test('段落の直後の箇条書き・見出し・表は別のブロックに�
 test('CRLF の改行でも同じ結果になる', () => {
   assert.equal(renderMarkdown('# a\r\n\r\nb'), renderMarkdown('# a\n\nb'));
 });
+
+test('表のセル内のコードにある | は区切りにしない', () => {
+  const html = renderMarkdown('| a | b |\n|---|---|\n| `x|y` | **z** |');
+  assert.ok(html.includes('<tr><td><code>x|y</code></td><td><strong>z</strong></td></tr>'));
+});
+
+test('*** は太字と斜体を正しく入れ子にする', () => {
+  assert.equal(renderInline('***両方*** と **太 *斜* 太**'), '<strong><em>両方</em></strong> と <strong>太 <em>斜</em> 太</strong>');
+});
+
+test('リンクの中の太字・コード', () => {
+  assert.equal(renderInline('[**太字**](https://e.com)'), '<a href="https://e.com"><strong>太字</strong></a>');
+  assert.equal(renderInline('[`code`](https://e.com)'), '<a href="https://e.com"><code>code</code></a>');
+});
+
+test('URL の " はエスケープし、属性を抜け出せない', () => {
+  assert.equal(renderInline('[a](https://e.com/"onmouseover=x)'), '<a href="https://e.com/&quot;onmouseover=x">a</a>');
+  assert.equal(renderInline('![x](javascript:alert(1))'), '<img src="#" alt="x">');
+});
+
+test('閉じていないコードブロックは最後までをコードにする', () => {
+  assert.equal(renderMarkdown('```js\nlet a = 1;'), '<pre><code class="language-js">let a = 1;</code></pre>');
+});
+
+test('引用の中の箇条書きと、空の > 行', () => {
+  assert.equal(renderMarkdown('> a\n> b\n>\n> - c'), '<blockquote>\n<p>a<br>\nb</p>\n<ul>\n<li>c</li>\n</ul>\n</blockquote>');
+});
+
+test('掛け算の * は斜体にしない', () => {
+  assert.equal(renderInline('2 * 3 * 4'), '2 * 3 * 4');
+});
