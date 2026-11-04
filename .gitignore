@@ -1,1 +1,3 @@
 dist/
+# プレビューの確認欄（OK / NG とコメント）の保存先
+reviews.json
