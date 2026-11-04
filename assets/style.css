@@ -41,6 +41,8 @@ ul.posts a { font-size: 1.1rem; font-weight: 600; }
 .summary { margin: 4px 0 0; color: var(--muted); }
 .tags { margin: 6px 0 0; }
 .tag { display: inline-block; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 0.8rem; }
+a.tag { text-decoration: none; }
+a.tag:hover { color: var(--accent); border-color: var(--accent); }
 code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
 pre { background: var(--code-bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; line-height: 1.5; }
 pre code { background: none; padding: 0; }
